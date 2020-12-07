@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Tiras_test</string>
+    <string name="complete_btn">Choice this folder</string>
 </resources>
