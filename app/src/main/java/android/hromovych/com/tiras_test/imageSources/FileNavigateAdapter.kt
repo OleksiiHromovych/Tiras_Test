@@ -1,7 +1,9 @@
 package android.hromovych.com.tiras_test.imageSources
 
+import android.content.Context
 import android.graphics.BitmapFactory
 import android.hromovych.com.tiras_test.R
+import android.hromovych.com.tiras_test.extentions.isImage
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -11,7 +13,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
 
-class FileNavigateAdapter(var items: List<File>) :
+class FileNavigateAdapter(val context: Context, var items: List<File>) :
     RecyclerView.Adapter<FileNavigateAdapter.FileNavigateHolder>() {
 
     var onItemClickAction: ((File) -> Unit)? = null
@@ -23,14 +25,15 @@ class FileNavigateAdapter(var items: List<File>) :
         private val textView = view.findViewById<TextView>(R.id.textView)
         private val imageView = view.findViewById<ImageView>(R.id.imageView)
 
+        init {
+            view.setOnClickListener(this)
+        }
 
         fun bind(s: File) {
             file = s
             textView.text = file.name
-
             when {
-                file.name.toLowerCase().substringAfterLast(".") in
-                        arrayOf("jpg", "png", "gif", "jpeg") -> imageView.setImageBitmap(
+                file.isImage() -> imageView.setImageBitmap(
                     BitmapFactory.decodeFile(file.absolutePath)
                 )
                 file.isDirectory -> imageView.setImageDrawable(
@@ -49,7 +52,7 @@ class FileNavigateAdapter(var items: List<File>) :
         }
 
         override fun onClick(v: View?) {
-            view.setOnClickListener { onItemClickAction?.invoke(file) }
+            onItemClickAction?.invoke(file)
         }
 
 
@@ -57,7 +60,7 @@ class FileNavigateAdapter(var items: List<File>) :
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FileNavigateHolder {
         return FileNavigateHolder(
-            LayoutInflater.from(parent.context).inflate(R.layout.item_file_navigate, parent, false)
+            LayoutInflater.from(context).inflate(R.layout.item_file_navigate, parent, false)
         )
     }
 
@@ -65,6 +68,6 @@ class FileNavigateAdapter(var items: List<File>) :
         holder.bind(items[position])
     }
 
-    override fun getItemCount() = items.count()
+    override fun getItemCount() = items.size
 
 }

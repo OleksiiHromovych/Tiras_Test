@@ -1,27 +1,29 @@
 package android.hromovych.com.tiras_test.imageSources
 
+import android.app.AlertDialog
+import android.content.Context
+import android.content.DialogInterface
 import android.hromovych.com.tiras_test.R
+import android.hromovych.com.tiras_test.extentions.isImage
 import android.os.Bundle
 import android.os.Environment
+import android.os.storage.StorageVolume
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
-import android.widget.LinearLayout
-import androidx.core.view.setPadding
 import androidx.fragment.app.DialogFragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
 
-class FileNavigateDialog : DialogFragment() {
+class FileNavigateDialog(val completeBtnAction: (List<File>) -> Unit) : DialogFragment() {
     private lateinit var recyclerView: RecyclerView
-    private lateinit var pathLayout: LinearLayout
     private lateinit var completeBtn: Button
+    private lateinit var backBtn: Button
 
     private lateinit var adapter: FileNavigateAdapter
-
-    private var currentPath: String? = null
+    private lateinit var currentFile: File
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -31,24 +33,72 @@ class FileNavigateDialog : DialogFragment() {
         val view = inflater.inflate(R.layout.dialog_file_navigate, container, false)
 
         recyclerView = view.findViewById(R.id.recyclerView)
-        pathLayout = view.findViewById(R.id.pathLayout)
         completeBtn = view.findViewById(R.id.completeBtn)
+        backBtn = view.findViewById(R.id.backButton)
 
+        currentFile = Environment.getExternalStorageDirectory().absoluteFile
         initViews()
 
         return view
-       }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setStyle(STYLE_NO_TITLE, R.style.Theme_Dialog)
+    }
 
     private fun initViews() {
         recyclerView.layoutManager = LinearLayoutManager(context)
         adapter = FileNavigateAdapter(
-            listOf(
-                Environment.getExternalStorageDirectory(),
-                File(System.getenv("SECONDARY_STORAGE")!!)
-            )
+            context!!,
+            getStartFileList()
         )
         adapter.onItemClickAction = { file -> onItemClickListener(file) }
+        recyclerView.adapter = adapter
+
+        backBtn.setOnClickListener {
+            currentFile.parentFile?.let { onItemClickListener(it) }
+        }
+        completeBtn.setOnClickListener {
+            AlertDialog.Builder(context).apply {
+                setTitle("Search photo in nested folders?")
+                setCancelable(false)
+                setPositiveButton("Yes") { _: DialogInterface, _: Int ->
+                    val images = findImages(currentFile, true)
+                    completeBtnAction(images)
+                }
+                setNegativeButton("No") { _, _ ->
+                    val images = findImages(currentFile, false)
+                    completeBtnAction(images)
+                }
+            }
+                .create()
+                .show()
+        }
     }
+
+    private fun findImages(root: File, withNested: Boolean): List<File> {
+        val images = mutableListOf<File>()
+
+        root.listFiles()?.forEach {
+            if (withNested && it.isDirectory && !it.isHidden)
+                images.addAll(findImages(it, withNested))
+            else
+                if (it.isImage())
+                    images.add(it)
+        }
+
+        return images
+    }
+
+    private fun getStartFileList() = mutableListOf(
+        Environment.getRootDirectory().absoluteFile,
+    ).apply {
+        getExternalCardDirectory(true)?.let { add(it) }
+        getExternalCardDirectory(false)?.let { add(it) }
+
+    }.toList()
+
 
     private fun updateList(items: List<File>) {
         adapter.items = items
@@ -56,21 +106,35 @@ class FileNavigateDialog : DialogFragment() {
     }
 
     private fun onItemClickListener(file: File) {
-        updateList(file.listFiles().toList())
-        currentPath = file.absolutePath
-        updateFolderPath()
-    }
-
-    private fun updateFolderPath(){
-        pathLayout.removeAllViews()
-        currentPath?.split("/")?.forEach { pathPart ->
-            val pathPartBtn = Button(context).apply {
-                text = pathPart
-                setOnClickListener { onItemClickListener(File(currentPath!!.substringBefore(pathPart))) }
-                setPadding(1)
-            }
-            pathLayout.addView(pathPartBtn)
+        if (file.isDirectory && file.listFiles() != null) {
+            updateList(file.listFiles().toList())
+            currentFile = file
+            backBtn.text = file.name
+        } else {
+            updateList(
+                getStartFileList()
+            )
+            backBtn.text = ""
         }
     }
 
+    // For get sdcard or storage file.
+    private fun getExternalCardDirectory(is_removable: Boolean): File? {
+        val storageManager = context!!.getSystemService(Context.STORAGE_SERVICE)
+        try {
+            val storageVolumeClazz = Class.forName("android.os.storage.StorageVolume")
+            val getVolumeList = storageManager.javaClass.getMethod("getVolumeList")
+            val getPath = storageVolumeClazz.getMethod("getPath")
+            val isRemovable = storageVolumeClazz.getMethod("isRemovable")
+            val result = getVolumeList.invoke(storageManager) as Array<StorageVolume>
+            result.forEach {
+                if (isRemovable.invoke(it) as Boolean == is_removable) {
+                    return File(getPath.invoke(it) as String)
+                }
+            }
+        } catch (e: Throwable) {
+            e.printStackTrace()
+        }
+        return null
+    }
 }
