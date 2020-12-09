@@ -1,24 +1,26 @@
 package android.hromovych.com.tiras_test
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.hromovych.com.tiras_test.extentions.findImages
 import android.hromovych.com.tiras_test.imageSlider.PageView
+import android.hromovych.com.tiras_test.imageSlider.TripleClickListener
 import android.hromovych.com.tiras_test.imageSources.FileNavigateDialog
 import android.hromovych.com.tiras_test.receivers.StartSlideShowReceiver
 import android.hromovych.com.tiras_test.settings.MainSettingsActivity
 import android.os.Bundle
 import android.os.Handler
 import android.util.Log
-import android.view.Menu
-import android.view.MenuItem
-import android.view.WindowManager
+import android.view.*
 import android.widget.Toast
+import androidx.appcompat.app.ActionBar
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.PreferenceManager
 import androidx.viewpager.widget.ViewPager
 import java.io.File
 import java.util.*
+import kotlin.properties.Delegates
 
 class MainActivity : AppCompatActivity() {
 
@@ -51,9 +53,7 @@ class MainActivity : AppCompatActivity() {
             WindowManager.LayoutParams.FLAG_FULLSCREEN,
             WindowManager.LayoutParams.FLAG_FULLSCREEN
         )
-//        supportActionBar?.hide()
-        supportActionBar?.show()
-
+        supportActionBar?.hide()
         val preferences = getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE)
         val path = preferences.getString(PREFERENCES_PATH, null)
         val withNested = preferences.getBoolean(PREFERENCES_WITH_NESTED, false)
@@ -100,6 +100,7 @@ class MainActivity : AppCompatActivity() {
 
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     private fun fileNavigateAction(path: String, withNested: Boolean) {
         images = File(path).findImages(withNested)
         adapter = PageView(this, images)
@@ -121,7 +122,37 @@ class MainActivity : AppCompatActivity() {
 
         })
 
+        mPager.setOnTouchListener(object : View.OnTouchListener {
+            private var moved by Delegates.notNull<Boolean>()
+
+            override fun onTouch(v: View?, event: MotionEvent?): Boolean {
+                when (event?.action){
+                    MotionEvent.ACTION_DOWN -> {
+                        moved = false
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        moved = true
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        if (!moved){
+                            onPagerClickListener.onClick(v)
+                            return true
+                        }
+                    }
+                }
+
+                return true
+            }
+        })
+
         updatePager()
+    }
+
+    private val onPagerClickListener = object : TripleClickListener(){
+        override fun onTripleClick(v: View?) {
+            supportActionBar?.turnOverVisibility()
+            Toast.makeText(baseContext, "triple Click", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun updatePager() {
@@ -159,9 +190,18 @@ class MainActivity : AppCompatActivity() {
             R.id.action_settings -> {
                 startActivity(Intent(this, MainSettingsActivity::class.java))
             }
-            else -> Toast.makeText(this, "${item.title} not implement", Toast.LENGTH_SHORT).show()
+            else -> Toast.makeText(this, "${item.title} not implement", Toast.LENGTH_SHORT)
+                .show()
         }
 
         return super.onOptionsItemSelected(item)
     }
+}
+
+private fun ActionBar.turnOverVisibility(){
+    if (this.isShowing) {
+        this.hide()
+    }
+    else
+        this.show()
 }
