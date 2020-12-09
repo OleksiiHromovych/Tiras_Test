@@ -1,7 +1,7 @@
 package android.hromovych.com.tiras_test.imageSlider
 
 import android.content.Context
-import android.graphics.BitmapFactory
+import android.graphics.Bitmap
 import android.hromovych.com.tiras_test.R
 import android.view.LayoutInflater
 import android.view.View
@@ -10,7 +10,7 @@ import android.widget.ImageView
 import android.widget.RelativeLayout
 import androidx.viewpager.widget.PagerAdapter
 
-class PageView(val context: Context, val images: List<String>) : PagerAdapter() {
+class PageView(val context: Context, val images: List<Bitmap>) : PagerAdapter() {
 
     override fun getCount(): Int = images.size
 
@@ -21,7 +21,7 @@ class PageView(val context: Context, val images: List<String>) : PagerAdapter() 
         val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
         val rl = inflater.inflate(R.layout.swipe_fragment, container, false)
         val image = rl.findViewById<ImageView>(R.id.imageView)
-        image.setImageBitmap(BitmapFactory.decodeFile(images[position]))
+        image.setImageBitmap(images[position])
         container.addView(rl)
         return rl
     }

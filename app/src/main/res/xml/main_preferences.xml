@@ -3,11 +3,10 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <androidx.preference.SwitchPreference
+    <androidx.preference.CheckBoxPreference
         android:defaultValue="true"
-        android:key="example_switch"
-        android:summary="Turn this option on or off"
-        android:title="Settings option" />
+        android:key="@string/USE_LOCAL_IMAGES"
+        android:title="Use local images" />
 
     <androidx.preference.SeekBarPreference
         android:defaultValue="5"

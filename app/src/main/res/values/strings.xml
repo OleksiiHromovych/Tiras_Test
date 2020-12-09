@@ -1,4 +1,13 @@
 <resources>
     <string name="app_name">Tiras_test</string>
     <string name="complete_btn">Choice this folder</string>
+
+
+    <string-array name="image_urls">
+        <item>https://wallpaperaccess.com/full/1552186.jpg</item>
+        <item>https://wallpaperaccess.com/full/2799482.jpg</item>
+        <item>https://wallpaperaccess.com/full/2853780.jpg</item>
+        <item>https://i.insider.com/57912602dd0895884d8b4c0d?width=600&amp;format=jpeg&amp;auto=webp</item>
+        <item>https://www.northernvermont.edu/sites/default/files/nvu_phone_lock_screen_01.jpg</item>
+    </string-array>
 </resources>

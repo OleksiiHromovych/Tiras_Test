@@ -2,4 +2,5 @@
 <resources>
 
     <string name="LENGTH_INTERVAL">length_interval</string>
+    <string name="USE_LOCAL_IMAGES">use_local_images</string>
 </resources>

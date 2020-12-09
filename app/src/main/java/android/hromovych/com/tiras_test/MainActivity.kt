@@ -3,10 +3,12 @@ package android.hromovych.com.tiras_test
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.hromovych.com.tiras_test.extentions.findImages
 import android.hromovych.com.tiras_test.imageSlider.FadePageTransformer
 import android.hromovych.com.tiras_test.imageSlider.PageView
 import android.hromovych.com.tiras_test.imageSlider.TripleClickListener
+import android.hromovych.com.tiras_test.imageSources.DownloadImage
 import android.hromovych.com.tiras_test.imageSources.FileNavigateDialog
 import android.hromovych.com.tiras_test.receivers.StartSlideShowReceiver
 import android.hromovych.com.tiras_test.settings.MainSettingsActivity
@@ -14,6 +16,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.util.Log
 import android.view.*
+import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.PreferenceManager
@@ -27,8 +30,9 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var mPager: ViewPager
     private lateinit var adapter: PageView
+    private lateinit var progressBar: ProgressBar
 
-    private lateinit var images: List<String>
+    private lateinit var images: List<Bitmap>
 
     private var timer: Timer? = null
     private val DELAY_MS: Long = 1000
@@ -50,6 +54,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         mPager = findViewById(R.id.pager)
+        progressBar = findViewById(R.id.progressBar)
 
         window.setFlags(
             WindowManager.LayoutParams.FLAG_FULLSCREEN,
@@ -63,10 +68,16 @@ class MainActivity : AppCompatActivity() {
 
         periodMs = getPeriod()
 
-        if (path == null)
-            showFileNavigateDialog()
-        else
-            fileNavigateAction(path, withNested)
+        val isImagesFromLocal = PreferenceManager.getDefaultSharedPreferences(this)
+            .getBoolean(getString(R.string.USE_LOCAL_IMAGES), true)
+
+        if (isImagesFromLocal) {
+            if (path == null)
+                showFileNavigateDialog()
+            else
+                fileNavigateAction(path, withNested)
+        } else
+            setImageFromInternet()
     }
 
     override fun onResume() {
@@ -79,6 +90,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+
     private fun getPeriod(): Long {
         var interval = PreferenceManager.getDefaultSharedPreferences(this)
             .getInt(getString(R.string.LENGTH_INTERVAL), 5)  //need in ms
@@ -90,6 +102,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showFileNavigateDialog() {
+        /* Show dialog for images picker from local storage */
         FileNavigateDialog { path, withNested ->
 
             val sharedPref = getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE)
@@ -103,9 +116,13 @@ class MainActivity : AppCompatActivity() {
 
     }
 
-    @SuppressLint("ClickableViewAccessibility")
     private fun fileNavigateAction(path: String, withNested: Boolean) {
         images = File(path).findImages(withNested)
+        initPager(images)
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun initPager(images: List<Bitmap>) {
         adapter = PageView(this, images)
         mPager.adapter = adapter
         mPager.addOnPageChangeListener(object : ViewPager.OnPageChangeListener {
@@ -155,7 +172,6 @@ class MainActivity : AppCompatActivity() {
         override fun onTripleClick(v: View?) {
             isActivityLocked = !isActivityLocked
             lockActivity(isActivityLocked)
-            Toast.makeText(baseContext, "triple Click", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -231,7 +247,15 @@ class MainActivity : AppCompatActivity() {
                     this.systemUiVisibility = flags
             }
         }
-
     }
+
+    private fun setImageFromInternet() {
+
+        DownloadImage(progressBar) {
+            images = it
+            initPager(images)
+        }.execute(*resources.getStringArray(R.array.image_urls))
+    }
+
 
 }

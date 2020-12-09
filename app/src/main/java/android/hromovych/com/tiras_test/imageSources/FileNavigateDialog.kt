@@ -49,7 +49,7 @@ class FileNavigateDialog(val completeBtnAction: (String, Boolean) -> Unit) : Dia
     private fun initViews() {
         recyclerView.layoutManager = LinearLayoutManager(context)
         adapter = FileNavigateAdapter(
-            context!!,
+            requireContext(),
             getStartFileList()
         )
         adapter.onItemClickAction = { file -> onItemClickListener(file) }
@@ -106,7 +106,7 @@ class FileNavigateDialog(val completeBtnAction: (String, Boolean) -> Unit) : Dia
 
     // For get sdcard or storage file.
     private fun getExternalCardDirectory(is_removable: Boolean): File? {
-        val storageManager = context!!.getSystemService(Context.STORAGE_SERVICE)
+        val storageManager = requireContext().getSystemService(Context.STORAGE_SERVICE)
         try {
             val storageVolumeClazz = Class.forName("android.os.storage.StorageVolume")
             val getVolumeList = storageManager.javaClass.getMethod("getVolumeList")
