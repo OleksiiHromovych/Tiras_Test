@@ -4,7 +4,6 @@ import android.app.AlertDialog
 import android.content.Context
 import android.content.DialogInterface
 import android.hromovych.com.tiras_test.R
-import android.hromovych.com.tiras_test.extentions.isImage
 import android.os.Bundle
 import android.os.Environment
 import android.os.storage.StorageVolume
@@ -17,7 +16,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
 
-class FileNavigateDialog(val completeBtnAction: (List<File>) -> Unit) : DialogFragment() {
+class FileNavigateDialog(val completeBtnAction: (String, Boolean) -> Unit) : DialogFragment() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var completeBtn: Button
     private lateinit var backBtn: Button
@@ -64,12 +63,12 @@ class FileNavigateDialog(val completeBtnAction: (List<File>) -> Unit) : DialogFr
                 setTitle("Search photo in nested folders?")
                 setCancelable(false)
                 setPositiveButton("Yes") { _: DialogInterface, _: Int ->
-                    val images = findImages(currentFile, true)
-                    completeBtnAction(images)
+                    completeBtnAction(currentFile.absolutePath, true)
+                    dismiss()
                 }
                 setNegativeButton("No") { _, _ ->
-                    val images = findImages(currentFile, false)
-                    completeBtnAction(images)
+                    completeBtnAction(currentFile.absolutePath, false)
+                    dismiss()
                 }
             }
                 .create()
@@ -77,19 +76,6 @@ class FileNavigateDialog(val completeBtnAction: (List<File>) -> Unit) : DialogFr
         }
     }
 
-    private fun findImages(root: File, withNested: Boolean): List<File> {
-        val images = mutableListOf<File>()
-
-        root.listFiles()?.forEach {
-            if (withNested && it.isDirectory && !it.isHidden)
-                images.addAll(findImages(it, withNested))
-            else
-                if (it.isImage())
-                    images.add(it)
-        }
-
-        return images
-    }
 
     private fun getStartFileList() = mutableListOf(
         Environment.getRootDirectory().absoluteFile,

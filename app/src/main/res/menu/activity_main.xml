@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/action_settings"
+        android:title="Setting" />
+
+    <item
+        android:id="@+id/action_choice_images"
+        android:title="Choice images" />
+
+    <item
+        android:id="@+id/action_start_end_time"
+        android:title="Set start &amp; stop" />
+</menu>
