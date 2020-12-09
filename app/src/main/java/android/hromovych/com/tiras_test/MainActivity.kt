@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.hromovych.com.tiras_test.extentions.findImages
+import android.hromovych.com.tiras_test.imageSlider.FadePageTransformer
 import android.hromovych.com.tiras_test.imageSlider.PageView
 import android.hromovych.com.tiras_test.imageSlider.TripleClickListener
 import android.hromovych.com.tiras_test.imageSources.FileNavigateDialog
@@ -14,13 +15,13 @@ import android.os.Handler
 import android.util.Log
 import android.view.*
 import android.widget.Toast
-import androidx.appcompat.app.ActionBar
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.PreferenceManager
 import androidx.viewpager.widget.ViewPager
 import java.io.File
 import java.util.*
 import kotlin.properties.Delegates
+
 
 class MainActivity : AppCompatActivity() {
 
@@ -33,6 +34,7 @@ class MainActivity : AppCompatActivity() {
     private val DELAY_MS: Long = 1000
     private var periodMs: Long = 5000
 
+    private var isActivityLocked = true
 
     var currentPage = 0
 
@@ -53,7 +55,8 @@ class MainActivity : AppCompatActivity() {
             WindowManager.LayoutParams.FLAG_FULLSCREEN,
             WindowManager.LayoutParams.FLAG_FULLSCREEN
         )
-        supportActionBar?.hide()
+        lockActivity(isActivityLocked)
+
         val preferences = getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE)
         val path = preferences.getString(PREFERENCES_PATH, null)
         val withNested = preferences.getBoolean(PREFERENCES_WITH_NESTED, false)
@@ -126,7 +129,7 @@ class MainActivity : AppCompatActivity() {
             private var moved by Delegates.notNull<Boolean>()
 
             override fun onTouch(v: View?, event: MotionEvent?): Boolean {
-                when (event?.action){
+                when (event?.action) {
                     MotionEvent.ACTION_DOWN -> {
                         moved = false
                     }
@@ -134,7 +137,7 @@ class MainActivity : AppCompatActivity() {
                         moved = true
                     }
                     MotionEvent.ACTION_UP -> {
-                        if (!moved){
+                        if (!moved) {
                             onPagerClickListener.onClick(v)
                             return true
                         }
@@ -144,13 +147,14 @@ class MainActivity : AppCompatActivity() {
                 return true
             }
         })
-
+        mPager.setPageTransformer(false, FadePageTransformer())
         updatePager()
     }
 
-    private val onPagerClickListener = object : TripleClickListener(){
+    private val onPagerClickListener = object : TripleClickListener() {
         override fun onTripleClick(v: View?) {
-            supportActionBar?.turnOverVisibility()
+            isActivityLocked = !isActivityLocked
+            lockActivity(isActivityLocked)
             Toast.makeText(baseContext, "triple Click", Toast.LENGTH_SHORT).show()
         }
     }
@@ -196,12 +200,38 @@ class MainActivity : AppCompatActivity() {
 
         return super.onOptionsItemSelected(item)
     }
-}
 
-private fun ActionBar.turnOverVisibility(){
-    if (this.isShowing) {
-        this.hide()
+    private fun lockActivity(lock: Boolean) {
+        if (lock) {
+            supportActionBar?.hide()
+            showNavigationBar(false)
+        } else {
+            supportActionBar?.show()
+            showNavigationBar(true)
+        }
     }
-    else
-        this.show()
+
+    private fun showNavigationBar(isShow: Boolean) {
+        val flags = if (isShow) {
+            (View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+        } else {
+            (View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+        }
+        window.decorView.apply {
+            systemUiVisibility = flags
+            setOnSystemUiVisibilityChangeListener {
+                if (it and View.SYSTEM_UI_FLAG_FULLSCREEN == 0)
+                    this.systemUiVisibility = flags
+            }
+        }
+
+    }
+
 }
