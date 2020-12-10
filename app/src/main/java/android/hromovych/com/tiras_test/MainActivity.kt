@@ -1,12 +1,10 @@
 package android.hromovych.com.tiras_test
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.hromovych.com.tiras_test.extentions.findImages
-import android.hromovych.com.tiras_test.imageSlider.FadePageTransformer
-import android.hromovych.com.tiras_test.imageSlider.PageView
+import android.hromovych.com.tiras_test.imageSlider.PagerLab
 import android.hromovych.com.tiras_test.imageSlider.TripleClickListener
 import android.hromovych.com.tiras_test.imageSources.DownloadImage
 import android.hromovych.com.tiras_test.imageSources.FileNavigateDialog
@@ -15,34 +13,30 @@ import android.hromovych.com.tiras_test.receivers.StartSlideShowReceiver
 import android.hromovych.com.tiras_test.settings.MainSettingsActivity
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.util.Log
-import android.view.*
+import android.view.Menu
+import android.view.MenuItem
+import android.view.View
+import android.view.WindowManager
 import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.PreferenceManager
 import androidx.viewpager.widget.ViewPager
 import java.io.File
-import java.util.*
-import kotlin.properties.Delegates
 
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var mPager: ViewPager
-    private lateinit var adapter: PageView
     private lateinit var progressBar: ProgressBar
+
+    private lateinit var pagerLab: PagerLab
+
+    private var pagerLabTablet: PagerLab? = null
 
     private lateinit var images: List<Bitmap>
 
-    private var timer: Timer? = null
-    private val DELAY_MS: Long = 1000
-    private var periodMs: Long = 5000
-
     private var isActivityLocked = true
-
-    var currentPage = 0
+    private var isTabletVersion = false
 
     companion object {
         const val SHARED_PREFERENCES_NAME = "android.hromovych.com.tiras_test"
@@ -58,43 +52,85 @@ class MainActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O)
             startService(Intent(this, PowerConnectionService::class.java))
 
-        mPager = findViewById(R.id.pager)
-        progressBar = findViewById(R.id.progressBar)
-
         window.setFlags(
             WindowManager.LayoutParams.FLAG_FULLSCREEN,
             WindowManager.LayoutParams.FLAG_FULLSCREEN
         )
+
+        initViews()
+
         lockActivity(isActivityLocked)
 
-        val preferences = getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE)
-        val path = preferences.getString(PREFERENCES_PATH, null)
-        val withNested = preferences.getBoolean(PREFERENCES_WITH_NESTED, false)
+        pagerLab.periodMs = getPeriod()
 
-        periodMs = getPeriod()
+        startShow()
+    }
 
-        val isImagesFromLocal = PreferenceManager.getDefaultSharedPreferences(this)
-            .getBoolean(getString(R.string.USE_LOCAL_IMAGES), true)
+    private fun initViews() {
+        pagerLab = PagerLab(this, findViewById(R.id.pager))
 
-        if (isImagesFromLocal) {
-            if (path == null)
-                showFileNavigateDialog()
-            else
-                fileNavigateAction(path, withNested)
-        } else
-            setImageFromInternet()
+        pagerLab.onPagerClickListener = onPagerClickListener
+
+        findViewById<ViewPager>(R.id.pagerTablet)?.let {
+            pagerLabTablet = PagerLab(this, it)
+            pagerLabTablet!!.onPagerClickListener = onPagerClickListener
+        }
+
+        progressBar = findViewById(R.id.progressBar)
     }
 
     override fun onResume() {
         super.onResume()
         val newPeriodMs = getPeriod()
-        if (newPeriodMs != periodMs) {
-            Log.d("TAG", "onResume: $periodMs")
-            periodMs = newPeriodMs
-            updatePager()
+        if (newPeriodMs != pagerLab.periodMs) {
+            pagerLab.periodMs = newPeriodMs
         }
     }
 
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.activity_main, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        when (item.itemId) {
+            R.id.action_choice_images -> showFileNavigateDialog()
+            R.id.action_start_end_time -> {
+                StartSlideShowReceiver().setAlarm(this)
+            }
+            R.id.action_settings -> {
+                startActivity(Intent(this, MainSettingsActivity::class.java))
+            }
+            else -> Toast.makeText(this, "${item.title} not implement", Toast.LENGTH_SHORT)
+                .show()
+        }
+
+        return super.onOptionsItemSelected(item)
+    }
+
+    private val onPagerClickListener = object : TripleClickListener() {
+        override fun onTripleClick(v: View?) {
+            isActivityLocked = !isActivityLocked
+            lockActivity(isActivityLocked)
+        }
+    }
+
+    private fun startShow() {
+        val isImagesFromLocal = PreferenceManager.getDefaultSharedPreferences(this)
+            .getBoolean(getString(R.string.USE_LOCAL_IMAGES), true)
+
+        if (isImagesFromLocal) {
+            val preferences = getSharedPreferences(SHARED_PREFERENCES_NAME, MODE_PRIVATE)
+            val path = preferences.getString(PREFERENCES_PATH, null)
+            val withNested = preferences.getBoolean(PREFERENCES_WITH_NESTED, false)
+
+            if (path == null)
+                showFileNavigateDialog()    //pick new path
+            else
+                fileNavigateAction(path, withNested)
+        } else
+            setImageFromInternet()
+    }
 
     private fun getPeriod(): Long {
         var interval = PreferenceManager.getDefaultSharedPreferences(this)
@@ -121,109 +157,27 @@ class MainActivity : AppCompatActivity() {
 
     }
 
+    private fun initPagers(images: List<Bitmap>) {
+
+        if (pagerLabTablet != null) {
+            val halfIndex = images.size / 2
+            val firstHalf = images.subList(0, halfIndex)
+            val secondHalf = images.subList(halfIndex, images.size)
+            pagerLab.initPager(firstHalf)
+            pagerLabTablet!!.initPager(secondHalf)
+
+        } else
+            pagerLab.initPager(images)
+    }
+
     private fun fileNavigateAction(path: String, withNested: Boolean) {
+        // anonymous function fro path pick dialog
         try {
             images = File(path).findImages(withNested)
         } catch (e: Exception) {
             Toast.makeText(this, e.message, Toast.LENGTH_SHORT).show()
         }
-        initPager(images)
-    }
-
-    @SuppressLint("ClickableViewAccessibility")
-    private fun initPager(images: List<Bitmap>) {
-        adapter = PageView(this, images)
-        mPager.adapter = adapter
-        mPager.addOnPageChangeListener(object : ViewPager.OnPageChangeListener {
-            override fun onPageScrolled(
-                position: Int,
-                positionOffset: Float,
-                positionOffsetPixels: Int
-            ) {
-            }
-
-            override fun onPageSelected(position: Int) {
-                currentPage = position
-            }
-
-            override fun onPageScrollStateChanged(state: Int) {
-            }
-
-        })
-
-        mPager.setOnTouchListener(object : View.OnTouchListener {
-            private var moved by Delegates.notNull<Boolean>()
-
-            override fun onTouch(v: View?, event: MotionEvent?): Boolean {
-                when (event?.action) {
-                    MotionEvent.ACTION_DOWN -> {
-                        moved = false
-                    }
-                    MotionEvent.ACTION_MOVE -> {
-                        moved = true
-                    }
-                    MotionEvent.ACTION_UP -> {
-                        if (!moved) {
-                            onPagerClickListener.onClick(v)
-                            return true
-                        }
-                    }
-                }
-
-                return true
-            }
-        })
-        mPager.setPageTransformer(false, FadePageTransformer())
-        updatePager()
-    }
-
-    private val onPagerClickListener = object : TripleClickListener() {
-        override fun onTripleClick(v: View?) {
-            isActivityLocked = !isActivityLocked
-            lockActivity(isActivityLocked)
-        }
-    }
-
-    private fun updatePager() {
-        if (timer != null) {
-            timer!!.cancel()
-            timer!!.purge()
-        }
-        val handler = Handler()
-        val update = Runnable {
-            if (currentPage == images.size)
-                currentPage = 0
-            mPager.setCurrentItem(currentPage++, true)
-        }
-        timer = Timer()
-        timer!!.schedule(object : TimerTask() {
-            override fun run() {
-                handler.post(update)
-            }
-
-        }, DELAY_MS, periodMs)
-    }
-
-
-    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-        menuInflater.inflate(R.menu.activity_main, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        when (item.itemId) {
-            R.id.action_choice_images -> showFileNavigateDialog()
-            R.id.action_start_end_time -> {
-                StartSlideShowReceiver().setAlarm(this)
-            }
-            R.id.action_settings -> {
-                startActivity(Intent(this, MainSettingsActivity::class.java))
-            }
-            else -> Toast.makeText(this, "${item.title} not implement", Toast.LENGTH_SHORT)
-                .show()
-        }
-
-        return super.onOptionsItemSelected(item)
+        initPagers(images)
     }
 
     private fun lockActivity(lock: Boolean) {
@@ -259,12 +213,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setImageFromInternet() {
-
         DownloadImage(progressBar) {
             images = it
-            initPager(images)
+            initPagers(images)
         }.execute(*resources.getStringArray(R.array.image_urls))
     }
-
-
 }
