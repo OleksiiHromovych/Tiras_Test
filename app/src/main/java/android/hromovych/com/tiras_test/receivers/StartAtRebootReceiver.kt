@@ -17,8 +17,10 @@ class StartAtRebootReceiver : BroadcastReceiver() {
      * */
     override fun onReceive(context: Context, intent: Intent) {
         if (Intent.ACTION_BOOT_COMPLETED == intent.action) {
-            val serviceIntent = Intent(context, MainActivity::class.java)
-            context.startService(serviceIntent)
+            val i = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(i)
         }
     }
 }
