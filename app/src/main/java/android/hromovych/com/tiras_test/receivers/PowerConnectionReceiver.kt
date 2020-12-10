@@ -4,7 +4,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.hromovych.com.tiras_test.MainActivity
-import android.os.BatteryManager
 
 class PowerConnectionReceiver : BroadcastReceiver() {
     /**If an app registers to receive broadcasts, the app's receiver consumes resources every time
@@ -16,19 +15,22 @@ class PowerConnectionReceiver : BroadcastReceiver() {
      * more stringent.
      * */
     override fun onReceive(context: Context?, intent: Intent?) {
-        val status = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
-        val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                status == BatteryManager.BATTERY_STATUS_FULL
-
-//        val chargePlug = intent?.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1)
-//        val usbCharging = chargePlug == BatteryManager.BATTERY_PLUGGED_USB
-//        val acCharging = chargePlug == BatteryManager.BATTERY_PLUGGED_AC
-
-        if (isCharging) {
-            val i = Intent(context!!, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            }
-            context.startActivity(i)
+//        Toast.makeText(context, "Receive", Toast.LENGTH_SHORT).show()
+//        val status: Int = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+//        val isCharging: Boolean = status == BatteryManager.BATTERY_STATUS_CHARGING
+//                || status == BatteryManager.BATTERY_STATUS_FULL
+//// How are we charging?
+//        val chargePlug: Int = intent?.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1) ?: -1
+//        val usbCharge: Boolean = chargePlug == BatteryManager.BATTERY_PLUGGED_USB
+//        val acCharge: Boolean = chargePlug == BatteryManager.BATTERY_PLUGGED_AC
+//
+//        if (isCharging || usbCharging || acCharging) {
+            if (intent?.action == Intent.ACTION_POWER_CONNECTED) {
+                val i = Intent(context!!, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(i)
+//            }
         }
     }
 }

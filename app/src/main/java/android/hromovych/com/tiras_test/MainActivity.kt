@@ -10,8 +10,10 @@ import android.hromovych.com.tiras_test.imageSlider.PageView
 import android.hromovych.com.tiras_test.imageSlider.TripleClickListener
 import android.hromovych.com.tiras_test.imageSources.DownloadImage
 import android.hromovych.com.tiras_test.imageSources.FileNavigateDialog
+import android.hromovych.com.tiras_test.receivers.PowerConnectionService
 import android.hromovych.com.tiras_test.receivers.StartSlideShowReceiver
 import android.hromovych.com.tiras_test.settings.MainSettingsActivity
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.util.Log
@@ -52,6 +54,9 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O)
+            startService(Intent(this, PowerConnectionService::class.java))
 
         mPager = findViewById(R.id.pager)
         progressBar = findViewById(R.id.progressBar)
@@ -117,7 +122,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun fileNavigateAction(path: String, withNested: Boolean) {
-        images = File(path).findImages(withNested)
+        try {
+            images = File(path).findImages(withNested)
+        } catch (e: Exception) {
+            Toast.makeText(this, e.message, Toast.LENGTH_SHORT).show()
+        }
         initPager(images)
     }
 
