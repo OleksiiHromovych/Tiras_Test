@@ -13,6 +13,7 @@ import android.hromovych.com.tiras_test.receivers.StartSlideShowReceiver
 import android.hromovych.com.tiras_test.settings.MainSettingsActivity
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -36,12 +37,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var images: List<Bitmap>
 
     private var isActivityLocked = true
-    private var isTabletVersion = false
 
     companion object {
         const val SHARED_PREFERENCES_NAME = "android.hromovych.com.tiras_test"
         const val PREFERENCES_PATH = "path"
         const val PREFERENCES_WITH_NESTED = "with nested"
+        const val OPEN_DIRECTORY_REQUEST_CODE = 404
 
     }
 
@@ -108,6 +109,16 @@ class MainActivity : AppCompatActivity() {
         return super.onOptionsItemSelected(item)
     }
 
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == OPEN_DIRECTORY_REQUEST_CODE && resultCode == RESULT_OK){
+            val photosFolderPath: String = data?.data!!.path!!.substringBeforeLast("/")
+            Toast.makeText(this, "Images from folder at $photosFolderPath", Toast.LENGTH_SHORT).show()
+            fileNavigateAction(photosFolderPath, false)
+
+        }
+    }
+
     private val onPagerClickListener = object : TripleClickListener() {
         override fun onTripleClick(v: View?) {
             isActivityLocked = !isActivityLocked
@@ -117,7 +128,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun startShow() {
         val isImagesFromLocal = PreferenceManager.getDefaultSharedPreferences(this)
-            .getBoolean(getString(R.string.USE_LOCAL_IMAGES), true)
+            .getBoolean(getString(R.string.USE_LOCAL_IMAGES), false)
 
         if (isImagesFromLocal) {
             val preferences = getSharedPreferences(SHARED_PREFERENCES_NAME, MODE_PRIVATE)
@@ -144,17 +155,17 @@ class MainActivity : AppCompatActivity() {
 
     private fun showFileNavigateDialog() {
         /* Show dialog for images picker from local storage */
-        FileNavigateDialog { path, withNested ->
-
-            val sharedPref = getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE)
-            with(sharedPref.edit()) {
-                putString(PREFERENCES_PATH, path)
-                putBoolean(PREFERENCES_WITH_NESTED, withNested)
-                apply()
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.Q) {
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                type = "image/*"
+                addCategory(Intent.CATEGORY_OPENABLE)
             }
-            fileNavigateAction(path, withNested)
-        }.show(supportFragmentManager, null)
-
+            startActivityForResult(intent, OPEN_DIRECTORY_REQUEST_CODE)
+        } else {
+            FileNavigateDialog { path, withNested ->
+                fileNavigateAction(path, withNested)
+            }.show(supportFragmentManager, null)
+        }
     }
 
     private fun initPagers(images: List<Bitmap>) {
@@ -172,12 +183,24 @@ class MainActivity : AppCompatActivity() {
 
     private fun fileNavigateAction(path: String, withNested: Boolean) {
         // anonymous function fro path pick dialog
+
+        val sharedPref = getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE)
+        with(sharedPref.edit()) {
+            putString(PREFERENCES_PATH, path)
+            putBoolean(PREFERENCES_WITH_NESTED, withNested)
+            apply()
+        }
         try {
             images = File(path).findImages(withNested)
+
         } catch (e: Exception) {
+            Log.e("TAG", "fileNavigateAction: ${e.message}", )
             Toast.makeText(this, e.message, Toast.LENGTH_SHORT).show()
+            return
         }
+        Toast.makeText(this, "${images.size} images picked", Toast.LENGTH_SHORT).show()
         initPagers(images)
+
     }
 
     private fun lockActivity(lock: Boolean) {
