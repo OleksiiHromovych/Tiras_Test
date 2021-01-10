@@ -6,7 +6,7 @@ import android.graphics.Bitmap
 import android.hromovych.com.tiras_test.extentions.findImages
 import android.hromovych.com.tiras_test.imageSlider.PagerLab
 import android.hromovych.com.tiras_test.imageSlider.TripleClickListener
-import android.hromovych.com.tiras_test.imageSources.DownloadImage
+import android.hromovych.com.tiras_test.imageSources.DownloadImageCoroutines
 import android.hromovych.com.tiras_test.imageSources.FileNavigateDialog
 import android.hromovych.com.tiras_test.receivers.PowerConnectionService
 import android.hromovych.com.tiras_test.receivers.StartSlideShowReceiver
@@ -235,10 +235,16 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+//    private fun setImageFromInternet() {
+//        DownloadImage(progressBar) {
+//            images = it
+//            initPagers(images)
+//        }.execute(*resources.getStringArray(R.array.image_urls))
+//    }
     private fun setImageFromInternet() {
-        DownloadImage(progressBar) {
+        DownloadImageCoroutines(progressBar) {
             images = it
             initPagers(images)
-        }.execute(*resources.getStringArray(R.array.image_urls))
+        }.execute(resources.getStringArray(R.array.image_urls))
     }
 }
